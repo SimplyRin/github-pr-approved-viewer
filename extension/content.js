@@ -218,31 +218,32 @@
     }
 
     async function resolveTeamOwners(result) {
-        const teamCache = new Map();
-
+        // 未キャッシュのチームを収集
+        const uncached = new Set();
         for (const row of result) {
             for (const owner of row.owners) {
                 const m = owner.match(/^@([^/]+)\/(.+)$/);
-                if (m && !teamCache.has(owner)) {
-                    teamCache.set(owner, []);
+                if (m && !_teamCache.has(owner)) {
+                    uncached.add(owner);
                 }
             }
         }
 
-        for (const [teamOwner] of teamCache) {
+        // 未キャッシュのチームのみフェッチ
+        for (const teamOwner of uncached) {
             const m = teamOwner.match(/^@([^/]+)\/(.+)$/);
             if (m) {
                 const [, org, team] = m;
                 const members = await getTeamMembers(org, team);
-                teamCache.set(teamOwner, (members || []).map(u => `@${u}`));
+                _teamCache.set(teamOwner, (members || []).map(u => `@${u}`));
             }
         }
 
         return result.map(row => {
             const expanded = [];
             for (const owner of row.owners) {
-                if (teamCache.has(owner)) {
-                    for (const member of teamCache.get(owner)) {
+                if (_teamCache.has(owner)) {
+                    for (const member of _teamCache.get(owner)) {
                         if (!expanded.includes(member)) expanded.push(member);
                     }
                 } else {
@@ -770,6 +771,9 @@ class="avatar circle">
     let _navTimer = null;
     let _reviewObserver = null;
     let _lastResolved = null;
+
+    // チームメンバーのセッションキャッシュ（ブラウザ起動中は保持）
+    const _teamCache = new Map();
 
     // 設定変更時にその場で再描画する
     chrome.storage.onChanged.addListener((changes, area) => {

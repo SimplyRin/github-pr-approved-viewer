@@ -7,8 +7,8 @@
 // @match        https://github.com/*
 // @icon         https://github.githubassets.com/favicons/favicon.svg
 // @grant        GM_addStyle
-// @updateURL    https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-sticky-navigation.user.js
-// @downloadURL  https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-sticky-navigation.user.js
+// @updateURL    https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-sticky-navigation.user.js
+// @downloadURL  https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-sticky-navigation.user.js
 // ==/UserScript==
 
 // MIT License

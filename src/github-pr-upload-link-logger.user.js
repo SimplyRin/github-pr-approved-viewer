@@ -7,8 +7,8 @@
 // @match        https://github.com/*
 // @icon         https://github.githubassets.com/favicons/favicon.svg
 // @grant        GM_xmlhttpRequest
-// @updateURL    https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-upload-link-logger.user.js
-// @downloadURL  https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-upload-link-logger.user.js
+// @updateURL    https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-upload-link-logger.user.js
+// @downloadURL  https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-upload-link-logger.user.js
 // ==/UserScript==
 
 // MIT License

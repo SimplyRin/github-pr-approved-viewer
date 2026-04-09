@@ -23,7 +23,7 @@ GitHub PR Approved Viewer は Chrome ウェブストアからもインストー�
 
 ### GitHub PR Approved Viewer
 
-[![Install](https://img.shields.io/badge/Install-Tampermonkey-blue)](https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-approved-viewer.user.js) [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/github-pr-approved-viewer/ihbbhemhgbniepfbmobfgaknmkfhopih?hl=ja)
+[![Install](https://img.shields.io/badge/Install-Tampermonkey-blue)](https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-approved-viewer.user.js) [![Chrome Web Store](https://img.shields.io/badge/Chrome%20Web%20Store-Install-4285F4?logo=googlechrome&logoColor=white)](https://chromewebstore.google.com/detail/github-pr-approved-viewer/ihbbhemhgbniepfbmobfgaknmkfhopih?hl=ja)
 
 Pull Request ページに **Code Owner の承認状況** を表示します。
 
@@ -36,7 +36,7 @@ Pull Request ページに **Code Owner の承認状況** を表示します。
 
 ### GitHub PR Sticky Navigation
 
-[![Install](https://img.shields.io/badge/Install-Tampermonkey-blue)](https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-sticky-navigation.user.js)
+[![Install](https://img.shields.io/badge/Install-Tampermonkey-blue)](https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-sticky-navigation.user.js)
 
 Pull Request ページで **ナビゲーションバーをスクロール時に固定表示** します。
 
@@ -47,7 +47,7 @@ Pull Request ページで **ナビゲーションバーをスクロール時に�
 
 ### GitHub PR Auto Video Tag
 
-[![Install](https://img.shields.io/badge/Install-Tampermonkey-blue)](https://raw.githubusercontent.com/SimplyRin/github-tampermonkey/main/src/github-pr-upload-link-logger.user.js)
+[![Install](https://img.shields.io/badge/Install-Tampermonkey-blue)](https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer/main/src/github-pr-upload-link-logger.user.js)
 
 Pull Request の説明欄やコメント欄に **動画をアップロードした際、自動で `<video>` タグに変換** します。
 

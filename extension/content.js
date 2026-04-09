@@ -29,11 +29,18 @@
     }
     function getCodeOwnersUrl() {
         const [, owner, repo] = window.location.pathname.split('/');
-        // PRのベースブランチをDOMから取得、見つからなければ 'main' にフォールバック
-        const branch =
-            document.querySelector('.base-ref')?.textContent?.trim() ||
-            document.querySelector('[data-base-ref]')?.dataset?.baseRef ||
-            'main';
+        // "wants to merge X commits into {TARGET} from {SOURCE}" のテキストパターンから
+        // ターゲットブランチを取得（DOM のクラス名変更に影響されない方法）
+        let branch = 'main'; // フォールバック
+        const treePrefix = `/${owner}/${repo}/tree/`;
+        const links = document.querySelectorAll(`a[href^="${treePrefix}"]`);
+        for (const link of links) {
+            const parent = link.parentElement;
+            if (parent && /wants to merge .+ into/.test(parent.textContent)) {
+                branch = decodeURIComponent(link.getAttribute('href').slice(treePrefix.length));
+                break;
+            }
+        }
         return `https://github.com/${owner}/${repo}/blob/${branch}/.github/CODEOWNERS`;
     }
     async function getTeamMembers(owner, team) {

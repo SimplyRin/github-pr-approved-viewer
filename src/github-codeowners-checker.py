@@ -6,7 +6,16 @@ import os
 import re
 import subprocess
 import sys
+import urllib.request
 from pathlib import Path
+
+# 自動アップデート機能の有効/無効フラグ
+AUTO_UPDATE = True
+
+UPDATE_URL = (
+    "https://raw.githubusercontent.com/SimplyRin/github-pr-approved-viewer"
+    "/refs/heads/main/src/github-codeowners-checker.py"
+)
 
 
 def find_codeowners(root: Path) -> Path | None:
@@ -207,26 +216,50 @@ def main() -> None:
     result = find_code_owners(rules, changed_files)
     groups = group_by_pattern(result)
 
-    # --- 結果表示 ---
-    print("=" * 60)
-    print("コードオーナーごとの対象ファイル")
-    print("=" * 60)
+    WIDE = "=" * 60
+    SEP  = "─" * 60
+    MAX_OWNERS_INLINE = 5  # 1行に収めるオーナーの上限
 
-    for group in groups:
+    # --- 結果表示 ---
+    print(WIDE)
+    print("コードオーナーごとの対象ファイル")
+    print(WIDE)
+
+    total = len(groups)
+    for idx, group in enumerate(groups, 1):
         pattern_label = group["codeowner"] or "(マッチなし)"
-        owners_label = "  ".join(group["owners"]) if group["owners"] else "(オーナーなし)"
-        print(f"\nパターン : {pattern_label}")
-        print(f"オーナー : {owners_label}")
-        print(f"ファイル :")
+        owners = group["owners"]
+        file_count = len(group["files"])
+
+        print()
+        print(f"[{idx}/{total}] {pattern_label}  ({file_count} ファイル)")
+
+        if owners:
+            if len(owners) <= MAX_OWNERS_INLINE:
+                owners_line = "  ".join(owners)
+            else:
+                shown = "  ".join(owners[:MAX_OWNERS_INLINE])
+                rest  = len(owners) - MAX_OWNERS_INLINE
+                owners_line = f"{shown}  ... 他 {rest} 人"
+            print(f"      オーナー : {owners_line}")
+        else:
+            print("      オーナー : (なし)")
+
+        print(f"      ファイル : {file_count} 件")
         for f in group["files"]:
-            print(f"  {f}")
+            print(f"        {f}")
+
+        if idx < total:
+            print()
+            print(SEP)
 
     # --- サマリー ---
     all_owners = collect_all_owners(groups)
 
-    print("\n" + "=" * 60)
+    print()
+    print(WIDE)
     print("必要なコードオーナー一覧")
-    print("=" * 60)
+    print(WIDE)
     if all_owners:
         for owner in all_owners:
             print(f"  {owner}")
@@ -234,5 +267,34 @@ def main() -> None:
         print("  (なし)")
 
 
+def check_for_update() -> None:
+    """リモートの最新版と比較し、差分があればローカルファイルを上書き更新する"""
+    if not AUTO_UPDATE:
+        return
+
+    local_path = Path(__file__)
+
+    try:
+        req = urllib.request.Request(
+            UPDATE_URL,
+            headers={"User-Agent": "github-codeowners-checker/selfupdate"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as res:
+            remote_text = res.read().decode("utf-8")
+    except Exception as e:
+        print(f"\n[自動更新] 最新版の取得に失敗しました: {e}", file=sys.stderr)
+        return
+
+    local_text = local_path.read_text(encoding="utf-8")
+
+    if remote_text == local_text:
+        print("\n[自動更新] 最新版です。")
+        return
+
+    local_path.write_text(remote_text, encoding="utf-8")
+    print("\n[自動更新] スクリプトを更新しました。次回実行から新しいバージョンが使われます。")
+
+
 if __name__ == "__main__":
     main()
+    check_for_update()

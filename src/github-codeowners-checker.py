@@ -282,17 +282,17 @@ def check_for_update() -> None:
         with urllib.request.urlopen(req, timeout=10) as res:
             remote_text = res.read().decode("utf-8")
     except Exception as e:
-        print(f"\n[自動更新] 最新版の取得に失敗しました: {e}", file=sys.stderr)
+        # print(f"\n[自動更新] 最新版の取得に失敗しました: {e}", file=sys.stderr)
         return
 
     local_text = local_path.read_text(encoding="utf-8")
 
     if remote_text == local_text:
-        print("\n[自動更新] 最新版です。")
+        # print("\n[自動更新] 最新版です。")
         return
 
     local_path.write_text(remote_text, encoding="utf-8")
-    print("\n[自動更新] スクリプトを更新しました。次回実行から新しいバージョンが使われます。")
+    # print("\n[自動更新] スクリプトを更新しました。次回実行から新しいバージョンが使われます。")
 
 
 if __name__ == "__main__":

@@ -56,7 +56,7 @@ def pattern_to_regex(pattern: str) -> re.Pattern:
         regex = "^/.*$"
     elif normalized.endswith("/"):
         regex = "^" + regex + ".*$"
-    elif "/" not in normalized:
+    elif "/" not in normalized[1:]:
         regex = "^.*/" + regex.lstrip("/") + "$"
     else:
         regex = "^" + regex + "$"
@@ -64,10 +64,44 @@ def pattern_to_regex(pattern: str) -> re.Pattern:
     return re.compile(regex)
 
 
+def decode_git_filename(name: str) -> str:
+    """git が出力するクォート済みオクタルエスケープのファイル名をデコードする"""
+    if name.startswith('"') and name.endswith('"'):
+        name = name[1:-1]
+        raw: list[int] = []
+        i = 0
+        while i < len(name):
+            if name[i] == "\\" and i + 1 < len(name):
+                next_ch = name[i + 1]
+                if next_ch in "01234567" and i + 3 < len(name):
+                    octal_str = name[i + 1 : i + 4]
+                    try:
+                        raw.append(int(octal_str, 8))
+                        i += 4
+                        continue
+                    except ValueError:
+                        pass
+                escape_map = {"t": 9, "n": 10, "r": 13, "\\\\": 92, '"': 34}
+                if next_ch in escape_map:
+                    raw.append(escape_map[next_ch])
+                    i += 2
+                    continue
+            raw.append(ord(name[i]))
+            i += 1
+        return bytes(raw).decode("utf-8", errors="replace")
+    return name
+
+
+def clean_file_name(name: str) -> str:
+    """content.js の cleanFileName 相当: 方向制御文字を除去してトリムする"""
+    return re.sub(r"[\u200e\u200f\u202a-\u202e]", "", name).strip()
+
+
 def find_code_owners(rules: list[dict], changed_files: list[str]) -> list[dict]:
     """変更ファイルそれぞれに対してマッチする CODEOWNERS ルールを返す (最後にマッチしたルールが優先)"""
     result = []
     for file in changed_files:
+        file = clean_file_name(file)
         file = ensure_leading_slash(file)
 
         matched_owners: list[str] = []
@@ -93,10 +127,10 @@ def find_code_owners(rules: list[dict], changed_files: list[str]) -> list[dict]:
 
 
 def get_changed_files() -> list[str]:
-    """git diff --name-status main から変更ファイル一覧を取得する"""
+    """git diff --name-status main...HEAD から変更ファイル一覧を取得する"""
     try:
         output = subprocess.check_output(
-            ["git", "diff", "--name-status", "main"],
+            ["git", "diff", "--name-status", "main...HEAD"],
             stderr=subprocess.DEVNULL,
             text=True,
         )
@@ -112,7 +146,7 @@ def get_changed_files() -> list[str]:
         parts = line.split("\t")
         if len(parts) >= 2:
             # R (renamed) の場合は parts[2] が新しいファイル名
-            files.append(parts[-1])
+            files.append(decode_git_filename(parts[-1]))
     return files
 
 
@@ -164,7 +198,7 @@ def main() -> None:
     # 変更ファイルを取得
     changed_files = get_changed_files()
     if not changed_files:
-        print("変更ファイルがありません (git diff --name-status main)。")
+        print("変更ファイルがありません (git diff --name-status main...HEAD)。")
         sys.exit(0)
 
     print(f"変更ファイル数: {len(changed_files)}\n")

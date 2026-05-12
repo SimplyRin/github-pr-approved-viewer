@@ -488,9 +488,13 @@
             ? 'var(--bgColor-success-emphasis)'
             : 'var(--bgColor-attention-emphasis)';
 
+        const headerIconClass = allApproved
+            ? 'bgColor-success-emphasis fgColor-onEmphasis'
+            : 'bgColor-attention-emphasis fgColor-onEmphasis';
+
         const headerIcon = allApproved
-            ? `<svg aria-hidden="true" focusable="false" class="octicon octicon-check" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom; color: var(--fgColor-onEmphasis);"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-6.25 6.25a.75.75 0 0 1-1.06 0L2.22 7.28a.75.75 0 1 1 1.06-1.06L7 9.94l5.72-5.72a.75.75 0 0 1 1.06 0Z"></path></svg>`
-            : `<svg aria-hidden="true" focusable="false" class="octicon octicon-dot-fill" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom; color: var(--fgColor-onEmphasis);"><path d="M8 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"></path></svg>`;
+            ? `<svg aria-hidden="true" focusable="false" class="octicon octicon-check" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom;"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>`
+            : `<svg aria-hidden="true" focusable="false" class="octicon octicon-dot-fill" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" display="inline-block" overflow="visible" style="vertical-align: text-bottom;"><path d="M8 4a4 4 0 1 1 0 8 4 4 0 0 1 0-8Z"></path></svg>`;
 
         const sectionId = 'codeowner-expandable-' + Date.now();
 
@@ -516,7 +520,7 @@
     <div class="d-flex width-full">
         <div class="mr-2 flex-shrink-0">
             <div style="overflow: hidden; border-width: 0px; border-radius: 50%; border-style: solid; border-color: var(--borderColor-default); width: 32px; height: 32px;">
-                <div style="display: flex; width: 32px; height: 32px; align-items: center; justify-content: center; background-color: ${headerIconBg};">
+                <div class="${headerIconClass}" style="display: flex; width: 32px; height: 32px; align-items: center; justify-content: center;">
                     ${headerIcon}
                 </div>
             </div>

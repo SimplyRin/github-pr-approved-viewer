@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR Sticky Navigation
 // @namespace    http://tampermonkey.net/
-// @version      1.5
+// @version      1.6
 // @description  GitHub の Pull Request ページで、スクロール時に Conversation、Commits、Checks、Files changed のナビゲーションバーを固定表示する
 // @author       SimplyRin
 // @match        https://github.com/*
@@ -51,7 +51,17 @@
         }
 
         #sticky-pr-nav.is-visible {
-            display: block;
+            display: flex;
+            align-items: center;
+            flex-wrap: nowrap;
+            overflow: hidden;
+        }
+
+        /* stickyNav 直下の最初の子（クローンした nav）が残りスペースを占有 */
+        #sticky-pr-nav > :first-child {
+            flex: 1 1 auto;
+            min-width: 0;
+            overflow: hidden;
         }
 
         /* 従来の .tabnav スタイル (conversation/checks/files) */
@@ -63,6 +73,8 @@
 
         #sticky-pr-nav .tabnav-tabs {
             border-bottom: none;
+            flex-wrap: nowrap;
+            align-items: center;
         }
 
         #sticky-pr-nav .tabnav-tab {
@@ -115,6 +127,25 @@
 
         #sticky-pr-nav-spacer.is-visible {
             display: block;
+        }
+
+        /* ページ上部へ戻るボタン */
+        #sticky-pr-nav-scroll-top {
+            flex: 0 0 auto;
+            margin: 0 16px 0 8px;
+            cursor: pointer;
+            background: none;
+            border: 1px solid var(--borderColor-default, var(--color-border-default));
+            border-radius: 6px;
+            padding: 3px 10px;
+            font-size: 12px;
+            color: var(--fgColor-default, var(--color-fg-default));
+            line-height: 20px;
+            white-space: nowrap;
+        }
+
+        #sticky-pr-nav-scroll-top:hover {
+            background-color: var(--bgColor-muted, var(--color-canvas-subtle));
         }
     `);
 
@@ -222,6 +253,17 @@
         stickyNav = document.createElement('div');
         stickyNav.id = 'sticky-pr-nav';
         stickyNav.innerHTML = originalNav.outerHTML;
+
+        // ページ上部へ戻るボタンを追加
+        const scrollTopBtn = document.createElement('button');
+        scrollTopBtn.id = 'sticky-pr-nav-scroll-top';
+        scrollTopBtn.title = 'ページ上部へ戻る';
+        scrollTopBtn.textContent = '↑ Top';
+        scrollTopBtn.addEventListener('click', () => {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+        stickyNav.appendChild(scrollTopBtn);
+
         document.body.appendChild(stickyNav);
 
         // files ページの場合、ファイルツリーの上にスペーサーを追加

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR Approved Viewer
 // @namespace    http://tampermonkey.net/
-// @version      1.8.0
+// @version      1.8.1
 // @description  Adds a 'Code owner review' panel to GitHub Pull Request pages. Displays CODEOWNERS approval status per file path with real-time updates when reviewer approvals change.
 // @author       @SimplyRin
 // @match        https://github.com/*
@@ -687,7 +687,7 @@ class="avatar circle">
 
     function getApprovedList() {
         const results = {};
-        const reviewerRows = document.querySelectorAll('form.js-issue-sidebar-form p.d-flex');
+        const reviewerRows = document.querySelectorAll('div.d-flex');
 
         reviewerRows.forEach(row => {
             const nameEl = row.querySelector('span[data-hovercard-type="user"]');

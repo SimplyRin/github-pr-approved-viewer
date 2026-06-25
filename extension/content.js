@@ -717,7 +717,7 @@ class="avatar circle">
 
     function getApprovedList() {
         const results = {};
-        const reviewerRows = document.querySelectorAll('form.js-issue-sidebar-form p.d-flex');
+        const reviewerRows = document.querySelectorAll('div.d-flex');
 
         reviewerRows.forEach(row => {
             const nameEl = row.querySelector('span[data-hovercard-type="user"]');

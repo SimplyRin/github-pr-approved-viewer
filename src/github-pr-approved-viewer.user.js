@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         GitHub PR Approved Viewer
 // @namespace    http://tampermonkey.net/
-// @version      1.8.2
+// @version      1.8.3
 // @description  Adds a 'Code owner review' panel to GitHub Pull Request pages. Displays CODEOWNERS approval status per file path with real-time updates when reviewer approvals change.
 // @author       @SimplyRin
 // @match        https://github.com/*
@@ -205,7 +205,9 @@
             .map(line => {
                 const parts = line.split(/\s+/);
                 const pattern = parts[0];
-                const owners = parts.slice(1);
+                // 行末コメント（"#" 以降）はオーナーに含めない
+                const commentIdx = parts.findIndex((part, i) => i > 0 && part.startsWith('#'));
+                const owners = commentIdx === -1 ? parts.slice(1) : parts.slice(1, commentIdx);
                 return { pattern, owners };
             });
 
@@ -221,9 +223,9 @@
             let matchedIndex = -1;
 
             for (let i = 0; i < rules.length; i++) {
-                const regex = patternToRegex(ensureLeadingSlash(rules[i].pattern));
+                const regex = patternToRegex(rules[i].pattern);
 
-                if (regex.test(file)) {
+                if (regex.test(file.replace(/^\/+/, ''))) {
                     matchedOwners = rules[i].owners;
                     matchedPattern = rules[i].pattern;
                     matchedIndex = i;
@@ -258,6 +260,16 @@
         });
     }
 
+    // GitHub のユーザー名・チーム名は大文字小文字を区別しないため、比較用に正規化する
+    function normalizeOwner(owner) {
+        return owner.replace(/^@/, '').toLowerCase();
+    }
+
+    function pushUniqueOwner(list, owner) {
+        const key = normalizeOwner(owner);
+        if (!list.some(o => normalizeOwner(o) === key)) list.push(owner);
+    }
+
     async function resolveTeamOwners(result) {
         const teamCache = new Map();
 
@@ -284,10 +296,10 @@
             for (const owner of row.owners) {
                 if (teamCache.has(owner)) {
                     for (const member of teamCache.get(owner)) {
-                        if (!expanded.includes(member)) expanded.push(member);
+                        pushUniqueOwner(expanded, member);
                     }
                 } else {
-                    if (!expanded.includes(owner)) expanded.push(owner);
+                    pushUniqueOwner(expanded, owner);
                 }
             }
             return { ...row, owners: expanded };
@@ -301,26 +313,44 @@
         return path;
     }
 
+    // CODEOWNERS のパターンを、先頭の "/" を除いたリポジトリ相対パスにマッチする正規表現に変換する
+    // （GitHub の仕様: https://docs.github.com/ja/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners）
     function patternToRegex(pattern) {
-        const normalized = pattern.replace(/^\/+/, '/');
+        // 末尾の "/" はディレクトリ指定（配下の全ファイルにマッチ）
+        const trimmed = pattern.replace(/\/+$/, '');
+        // 先頭または途中に "/" を含むパターンはリポジトリルート基準、含まないものは任意の階層にマッチ
+        const anchored = trimmed.includes('/');
+        const body = trimmed.replace(/^\/+/, '');
 
-        let regex = normalized
-            .replace(/\*\*/g, '\x00GLOBSTAR\x00')
-            .replace(/\./g, '\\.')
-            .replace(/\*/g, '[^/]*')
-            .replace(/\x00GLOBSTAR\x00/g, '.*');
-
-        if (normalized === '/*' || normalized === '/') {
+        if (body === '' || body === '*' || body === '**') {
             // ルートワイルドカード: 全ファイルにマッチ
-            regex = '^/.*$';
-        } else if (normalized.endsWith('/')) {
-            // ディレクトリパターン: 配下の全ファイルにマッチ
-            regex = '^' + regex + '.*$';
-        } else if (!normalized.includes('/')) {
-            // スラッシュなし: どのディレクトリのファイルにもマッチ
-            regex = '^.*/' + regex.replace(/^\//, '') + '$';
+            return /^.*$/;
+        }
+
+        const segments = body.split('/');
+        const last = segments[segments.length - 1];
+
+        let regex = segments.map((segment, i) => {
+            const isLast = i === segments.length - 1;
+            if (segment === '**') {
+                return isLast ? '.*' : '(?:.*/)?';
+            }
+            const converted = segment.replace(/[.+^${}()|[\]\\]/g, '\\$&')
+                .replace(/\*/g, '[^/]*')
+                .replace(/\?/g, '[^/]');
+            return isLast ? converted : converted + '/';
+        }).join('');
+
+        regex = (anchored ? '^' : '^(?:.*/)?') + regex;
+
+        if (last === '**') {
+            regex += '$';
+        } else if (last === '*' && segments.length > 1) {
+            // "docs/*" は直下のファイルのみにマッチし、さらに下の階層にはマッチしない
+            regex += '$';
         } else {
-            regex = '^' + regex + '$';
+            // ファイル名またはディレクトリ名にマッチ（ディレクトリの場合は配下の全ファイル）
+            regex += '(?:/.*)?$';
         }
 
         return new RegExp(regex);
@@ -442,8 +472,7 @@
     function insertSectionShell(mergeBox, { iconBg, borderColor, innerHTML, loading = false }) {
         ensureStyles();
 
-        const existing = document.querySelector('div[data-codeowner-section="true"]');
-        if (existing) existing.remove();
+        removeSection();
 
         const wrapper = document.createElement('div');
         // マージボックスと同じ余白・インデントにする（ユーティリティクラス名の変更にも追従するため既存要素からコピー）
@@ -472,9 +501,53 @@
         container.appendChild(box);
         wrapper.appendChild(container);
 
+        _sectionEl = wrapper;
         mergeBox.before(wrapper);
+        startSectionObserver();
 
         return section;
+    }
+
+    function removeSection() {
+        _sectionEl = null;
+        document.querySelectorAll('div[data-codeowner-section="true"]').forEach(el => el.remove());
+    }
+
+    // GitHub 側の再描画（React の再マウントなど）で挿入したセクションが取り除かれたり、
+    // マージボックスが作り直されたりしても、常にマージボックスの直前に表示し続ける
+    function keepSectionAttached() {
+        if (!_sectionEl) return;
+        const mergeBox = findMergeBox();
+        if (!mergeBox) return;
+        if (_sectionEl.isConnected && _sectionEl.nextElementSibling === mergeBox) return;
+        mergeBox.before(_sectionEl);
+    }
+
+    function approvalKey(approvedList) {
+        return JSON.stringify(Object.entries(approvedList).sort());
+    }
+
+    // サイドバーの Reviewers 欄は遅れて読み込まれたり、承認によって更新されたりするため、
+    // 承認状態が変わったら結果を再描画する
+    function refreshIfApprovalChanged() {
+        if (!_lastResolved || !_sectionEl) return;
+        if (approvalKey(getApprovedList()) !== _renderedApprovalKey) {
+            insertCodeOwnerSection(_lastResolved);
+        }
+    }
+
+    function startSectionObserver() {
+        if (_sectionObserver) return;
+        _sectionObserver = new MutationObserver(() => {
+            keepSectionAttached();
+            if (!_approvalTimer) {
+                _approvalTimer = setTimeout(() => {
+                    _approvalTimer = null;
+                    refreshIfApprovalChanged();
+                }, 300);
+            }
+        });
+        _sectionObserver.observe(document.body, { childList: true, subtree: true });
     }
 
     function sectionHeaderHtml({ avatarHtml, titleHtml, descriptionHtml, expandableId }) {
@@ -571,6 +644,11 @@
     function insertCodeOwnerSection(result) {
 
         const approvedList = getApprovedList();
+        _renderedApprovalKey = approvalKey(approvedList);
+        const approvedSet = new Set(
+            Object.entries(approvedList).filter(([, v]) => v).map(([u]) => normalizeOwner(u))
+        );
+        const isApproved = owner => approvedSet.has(normalizeOwner(owner));
 
         const mergeBox = findMergeBox();
         if (!mergeBox) return;
@@ -578,10 +656,7 @@
         const grouped = groupByPattern(result);
 
         const allApproved = grouped.length > 0 && grouped.every(row => {
-            return row.owners && row.owners.length > 0 && row.owners.some(owner => {
-                const username = owner.replace('@', '');
-                return approvedList[username] === true;
-            });
+            return row.owners && row.owners.length > 0 && row.owners.some(isApproved);
         });
 
         const headerIconBg = allApproved
@@ -636,14 +711,8 @@
             })()}
 
             ${grouped.map((row, rowIdx) => {
-                const rowApproved = row.owners && row.owners.some(owner => {
-                    const username = owner.replace('@', '');
-                    return approvedList[username] === true;
-                });
-                const approvedOwners = (row.owners || []).filter(owner => {
-                    const username = owner.replace('@', '');
-                    return approvedList[username] === true;
-                });
+                const rowApproved = row.owners && row.owners.some(isApproved);
+                const approvedOwners = (row.owners || []).filter(isApproved);
                 const fileCount = row.files.length;
                 const fileLabel = fileCount === 1 ? '1 file' : `${fileCount} files`;
                 return `
@@ -804,6 +873,7 @@ class="avatar circle">
         }
 
         if (!codeowner) {
+            removeSection();
             return;
         }
 
@@ -827,6 +897,7 @@ class="avatar circle">
 
         console.log(`approvedList: ${JSON.stringify(approvedList, null, 2)}`);
 
+        _lastResolved = resolved;
         insertCodeOwnerSection(resolved);
     }
 
@@ -835,6 +906,11 @@ class="avatar circle">
     let _generation = 0;
     let _navTimer = null;
     let _reviewObserver = null;
+    let _lastResolved = null;
+    let _sectionEl = null;
+    let _sectionObserver = null;
+    let _approvalTimer = null;
+    let _renderedApprovalKey = null;
 
     // Reviews セクションの出現を監視し、スケルトンを即時挿入してデータ取得を開始する
     function watchForPRContent() {
@@ -870,10 +946,10 @@ class="avatar circle">
         if (url === _lastUrl) return;
         _lastUrl = url;
         _generation++;
+        _lastResolved = null;
 
         // 古いセクションを削除
-        const existing = document.querySelector('div[data-codeowner-section="true"]');
-        if (existing) existing.remove();
+        removeSection();
 
         watchForPRContent();
     }

@@ -743,7 +743,7 @@
                         ${rowApproved ? iconApproved() : iconPending()}
                     </div>
                     <div style="flex: 2; padding-left: 8px;">
-                        <div class="text-bold text-small">${row.codeowner || '(no match)'}</div>
+                        <div class="text-bold text-small">${escapeHtml(row.codeowner || '(no match)')}</div>
                         <div class="text-small fgColor-muted">${fileLabel}</div>
                     </div>
                     <div style="flex: 1; display: flex; gap: 4px; flex-wrap: wrap; align-items: center;">
@@ -813,9 +813,17 @@
 
     }
 
+    function escapeHtml(value) {
+        return value.replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     function avatar(user) {
 
-        const u = user.replace('@', '');
+        const u = encodeURIComponent(user.replace('@', ''));
 
         return `
 <a
@@ -826,7 +834,7 @@ style="display:inline-block;line-height:0;"
 tabindex="-1">
 <img
 src="https://github.com/${u}.png"
-alt="${user}"
+alt="${escapeHtml(user)}"
 width="20"
 height="20"
 class="avatar circle">
